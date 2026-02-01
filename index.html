@@ -3,60 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tripplet NanoChat | Powered by NanoLink</title>
+    <title>Tripplet NanoChat | Powered By NanoLink</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
-    <script src="https://unpkg.com/lucide@0.263.0"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script async crossorigin="anonymous" src="https://clerk.trippletspark.com/v1/clerk.js?publishable_key=pk_live_Y2xlcmsudHJpcHBsZXRzcGFyay5jb20k"></script>
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
         body { font-family: 'Inter', sans-serif; }
+        .cl-userButtonTrigger { scale: 1.2; }
     </style>
 </head>
-<body>
+<body class="bg-gray-50">
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useRef, useEffect } = React;
         const { motion, AnimatePresence } = window.Motion;
 
-        // Mocking Lucide icons for CDN usage
-        const Icon = ({ name, className }) => {
-            const [svg, setSvg] = useState('');
-            useEffect(() => {
-                const icon = lucide.icons[name];
-                if (icon) {
-                    const svgString = lucide.createIcons({
-                        icons: { [name]: icon },
-                        attrs: { class: className }
-                    });
-                }
-            }, [name, className]);
-            // Simplified: Using basic Lucide component replacement
-            const LucideIcon = ({ icon: IconComponent, ...props }) => <IconComponent {...props} />;
-            return null;
-        };
-
-        // Re-assigning Icons from the global lucide object
-        const { 
-            Plus, ChevronDown, ArrowUp, Settings, X, File: FileIcon, Zap, Brain, 
-            Bot, Layers, Globe, Telescope, Search, MessageSquare, 
-            PanelLeftClose, PanelLeftOpen, Clock, MoreHorizontal 
-        } = lucide;
-
         const MODELS = [
-            { id: 'instant', name: 'R2 Instant', description: 'Fast Responses, Good Quality', icon: Zap, color: 'text-amber-500', bg: 'bg-amber-50' },
-            { id: 'thinking', name: 'R2 Thinking', description: 'Extended Capabilities Than Instant', icon: Brain, color: 'text-purple-500', bg: 'bg-purple-50' },
-            { id: 'agent', name: 'R2 Agent', description: 'Access to pro features.', icon: Bot, color: 'text-blue-500', bg: 'bg-blue-50' },
-            { id: 'matrix', name: 'R2 Agent Matrix', description: 'Agent with higher token limits.', icon: Layers, color: 'text-rose-500', bg: 'bg-rose-50' },
+            { id: 'instant', name: 'R2 Instant', description: 'Fast Responses', icon: 'Zap', color: 'text-amber-500', bg: 'bg-amber-50' },
+            { id: 'thinking', name: 'R2 Thinking', description: 'Extended Capabilities', icon: 'Brain', color: 'text-purple-500', bg: 'bg-purple-50' },
+            { id: 'agent', name: 'R2 Agent', description: 'Pro features', icon: 'Bot', color: 'text-blue-500', bg: 'bg-blue-50' },
+            { id: 'matrix', name: 'R2 Agent Matrix', description: 'High token limits', icon: 'Layers', color: 'text-rose-500', bg: 'bg-rose-50' },
         ];
 
         const MODIFIERS = [
-            { id: 'web_search', label: 'Web Search', icon: Search, color: 'text-blue-500', bg: 'bg-blue-50' },
-            { id: 'deep_research', label: 'Deep Research', icon: Telescope, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-            { id: 'website_generation', label: 'Website Generation', icon: Globe, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+            { id: 'web_search', label: 'Web Search', icon: 'Search', color: 'text-blue-500' },
+            { id: 'deep_research', label: 'Deep Research', icon: 'Telescope', color: 'text-emerald-500' },
+            { id: 'website_generation', label: 'Website Generation', icon: 'Globe', color: 'text-indigo-500' },
         ];
 
         function App() {
@@ -67,129 +46,137 @@
             const [selectedModifier, setSelectedModifier] = useState(null);
             const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
             const [isModifierMenuOpen, setIsModifierMenuOpen] = useState(false);
+            const [isLoaded, setIsLoaded] = useState(false);
 
             const fileInputRef = useRef(null);
-            const showModelSelector = !['deep_research', 'website_generation'].includes(selectedModifier || '');
-            const isActive = inputValue.trim().length > 0 || files.length > 0;
 
             useEffect(() => {
-                lucide.createIcons();
-            }, [isSidebarOpen, isModelMenuOpen, isModifierMenuOpen, files, selectedModifier]);
+                const interval = setInterval(() => {
+                    if (window.Clerk && window.Clerk.isReady()) {
+                        setIsLoaded(true);
+                        clearInterval(interval);
+                        // Mount User Button if logged in
+                        if (window.Clerk.user) {
+                            window.Clerk.mountUserButton(document.getElementById('user-button'));
+                        }
+                    }
+                }, 100);
+                return () => clearInterval(interval);
+            }, []);
+
+            useEffect(() => { lucide.createIcons(); }, [isSidebarOpen, isModelMenuOpen, isModifierMenuOpen, files, selectedModifier, isLoaded]);
 
             const handleFileUpload = (e) => {
-                if (e.target.files) {
-                    const newFiles = Array.from(e.target.files).map(file => ({
-                        name: file.name,
-                        type: file.type,
-                        url: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined
-                    }));
-                    setFiles(prev => [...prev, ...newFiles]);
-                }
+                const newFiles = Array.from(e.target.files).map(file => ({
+                    name: file.name,
+                    url: file.type.startsWith('image/') ? URL.createObjectURL(file) : null
+                }));
+                setFiles([...files, ...newFiles]);
             };
 
+            if (!isLoaded) return <div className="h-screen flex items-center justify-center text-gray-400">Loading...</div>;
+
             return (
-                <div className="flex h-screen bg-gray-50 overflow-hidden">
-                    <motion.aside 
-                        initial={false}
-                        animate={{ width: isSidebarOpen ? 280 : 0, opacity: isSidebarOpen ? 1 : 0 }}
-                        className="bg-white border-r border-gray-200 flex flex-col relative z-30"
-                    >
+                <div className="flex h-screen overflow-hidden">
+                    {/* Sidebar */}
+                    <motion.aside animate={{ width: isSidebarOpen ? 280 : 0 }} className="bg-white border-r border-gray-200 flex flex-col overflow-hidden">
                         <div className="p-4 flex flex-col h-full min-w-[280px]">
-                            <button className="flex items-center justify-between p-3 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors mb-6 group text-left">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-1.5 bg-gray-900 rounded-lg text-white">
-                                        <i data-lucide="plus" className="w-4 h-4"></i>
-                                    </div>
-                                    <span className="font-medium text-sm text-gray-700">New Chat</span>
-                                </div>
-                                <i data-lucide="message-square" className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100"></i>
+                            <button className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:bg-gray-50 mb-6">
+                                <div className="p-1.5 bg-gray-900 rounded-lg text-white"><i data-lucide="plus" className="w-4 h-4"></i></div>
+                                <span className="font-medium text-sm">New Chat</span>
                             </button>
-
-                            <div className="flex-1 overflow-y-auto">
-                                <div className="px-2 mb-4 flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                                    <i data-lucide="clock" className="w-3 h-3"></i> Recent
-                                </div>
-                                <div className="px-2 text-sm text-gray-400 italic">No recent chats</div>
+                            <div className="flex-1 text-xs font-semibold text-gray-400 uppercase tracking-wider px-2">
+                                <div className="flex items-center gap-2 mb-4"><i data-lucide="clock" className="w-3 h-3"></i> Recent</div>
+                                <div className="lowercase font-normal italic">No history yet</div>
                             </div>
-
-                            <div className="pt-4 mt-auto border-t border-gray-100">
-                                <button className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 font-bold text-xs">JD</div>
-                                        <span className="text-sm font-medium text-gray-700">John Doe</span>
-                                    </div>
-                                    <i data-lucide="more-horizontal" className="w-4 h-4 text-gray-400"></i>
-                                </button>
+                            <div id="user-button" className="py-4 border-t border-gray-100 min-h-[60px]">
+                                {!window.Clerk.user && (
+                                    <button onClick={() => window.Clerk.openSignIn()} className="text-sm font-medium text-blue-600">Sign In</button>
+                                )}
                             </div>
                         </div>
                     </motion.aside>
 
-                    <main className="flex-1 flex flex-col relative">
-                        <button 
-                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                            className="absolute top-6 left-6 p-2 text-gray-400 hover:text-gray-900 z-40"
-                        >
-                            {isSidebarOpen ? <i data-lucide="panel-left-close"></i> : <i data-lucide="panel-left-open"></i>}
+                    {/* Main Area */}
+                    <main className="flex-1 flex flex-col relative items-center justify-center p-6">
+                        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="absolute top-6 left-6 p-2 text-gray-400 hover:text-black">
+                            <i data-lucide={isSidebarOpen ? "panel-left-close" : "panel-left-open"}></i>
                         </button>
 
-                        <div className="flex-1 flex flex-col items-center justify-center p-4 pb-12">
-                            <motion.h1 
-                                initial={{ opacity: 0, y: -20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="text-4xl md:text-5xl font-semibold text-gray-900 mb-12 text-center"
-                            >
-                                What will you create today?
-                            </motion.h1>
+                        <h1 className="text-4xl font-semibold text-gray-900 mb-10">What will you create today?</h1>
 
-                            <div className="w-full max-w-2xl bg-white rounded-[26px] border border-gray-300 shadow-sm p-3 relative focus-within:shadow-md transition-all">
-                                {files.length > 0 && (
-                                    <div className="flex flex-wrap gap-3 mb-3 px-1">
-                                        {files.map((file, index) => (
-                                            <div key={index} className="relative group">
-                                                <div className="h-16 w-16 rounded-xl border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center">
-                                                    {file.url ? <img src={file.url} className="h-full w-full object-cover" /> : <i data-lucide="file" className="text-gray-400"></i>}
-                                                </div>
-                                            </div>
-                                        ))}
+                        <div className="w-full max-w-2xl bg-white rounded-[26px] border border-gray-300 shadow-sm p-4 relative focus-within:border-gray-400 transition-all">
+                            {/* File Previews */}
+                            <div className="flex flex-wrap gap-2 mb-2">
+                                {files.map((f, i) => (
+                                    <div key={i} className="relative w-12 h-12 rounded-lg border bg-gray-50 overflow-hidden">
+                                        {f.url ? <img src={f.url} className="object-cover w-full h-full" /> : <i data-lucide="file" className="m-auto"></i>}
+                                        <button onClick={() => setFiles(files.filter((_, idx) => idx !== i))} className="absolute top-0 right-0 bg-black text-white rounded-full p-0.5"><i data-lucide="x" className="w-2 h-2"></i></button>
                                     </div>
-                                )}
+                                ))}
+                            </div>
 
-                                <textarea
-                                    value={inputValue}
-                                    onChange={(e) => setInputValue(e.target.value)}
-                                    placeholder="Ask Anything..."
-                                    className="w-full h-12 bg-transparent resize-none outline-none text-gray-800 text-lg py-2 px-1"
-                                />
+                            <textarea 
+                                value={inputValue} 
+                                onChange={(e) => setInputValue(e.target.value)}
+                                placeholder="Ask anything..." 
+                                className="w-full resize-none outline-none text-lg min-h-[50px]"
+                            />
 
-                                <div className="flex items-center justify-between mt-2">
-                                    <div className="flex items-center gap-2">
-                                        <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" multiple />
-                                        <button onClick={() => fileInputRef.current.click()} className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-200 hover:bg-gray-50">
-                                            <i data-lucide="plus" className="w-4 h-4"></i>
-                                        </button>
-                                        
-                                        <button onClick={() => setIsModifierMenuOpen(!isModifierMenuOpen)} className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-200 hover:bg-gray-50">
-                                            <i data-lucide="settings" className="w-4 h-4"></i>
-                                        </button>
-
-                                        {selectedModifier && (
-                                            <div className="inline-flex items-center gap-2 bg-blue-50 px-2.5 py-1 rounded-lg border text-xs font-medium">
-                                                <button onClick={() => setSelectedModifier(null)}><i data-lucide="x" className="w-3 h-3"></i></button>
-                                                {MODIFIERS.find(m => m.id === selectedModifier)?.label}
-                                            </div>
-                                        )}
+                            <div className="flex items-center justify-between mt-4">
+                                <div className="flex items-center gap-2">
+                                    <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+                                    <button onClick={() => fileInputRef.current.click()} className="p-2 rounded-full border border-gray-200 hover:bg-gray-50"><i data-lucide="plus" className="w-4 h-4"></i></button>
+                                    
+                                    <div className="relative">
+                                        <button onClick={() => setIsModifierMenuOpen(!isModifierMenuOpen)} className="p-2 rounded-full border border-gray-200 hover:bg-gray-50"><i data-lucide="settings" className="w-4 h-4"></i></button>
+                                        <AnimatePresence>
+                                            {isModifierMenuOpen && (
+                                                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute bottom-12 left-0 w-56 bg-white border border-gray-200 rounded-xl shadow-xl p-2 z-50">
+                                                    {MODIFIERS.map(m => (
+                                                        <button key={m.id} onClick={() => { setSelectedModifier(m.id); setIsModifierMenuOpen(false); }} className="flex items-center gap-3 w-full p-2 hover:bg-gray-50 rounded-lg text-sm">
+                                                            <i data-lucide={m.icon.toLowerCase()} className={`w-4 h-4 ${m.color}`}></i> {m.label}
+                                                        </button>
+                                                    ))}
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </div>
 
-                                    <div className="flex items-center gap-3">
-                                        {showModelSelector && (
-                                            <button onClick={() => setIsModelMenuOpen(!isModelMenuOpen)} className="flex items-center gap-2 text-sm font-medium">
-                                                {selectedModel.name} <i data-lucide="chevron-down" className="w-4 h-4"></i>
-                                            </button>
-                                        )}
-                                        <button disabled={!isActive} className={`w-8 h-8 flex items-center justify-center rounded-full ${isActive ? 'bg-black text-white' : 'bg-gray-200 text-white'}`}>
-                                            <i data-lucide="arrow-up" className="w-4 h-4"></i>
+                                    {selectedModifier && (
+                                        <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-medium">
+                                            {selectedModifier.replace('_', ' ')}
+                                            <button onClick={() => setSelectedModifier(null)}><i data-lucide="x" className="w-3 h-3"></i></button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex items-center gap-4">
+                                    <div className="relative">
+                                        <button onClick={() => setIsModelMenuOpen(!isModelMenuOpen)} className="flex items-center gap-2 text-sm font-medium hover:text-gray-600">
+                                            <i data-lucide={selectedModel.icon.toLowerCase()} className={`w-4 h-4 ${selectedModel.color}`}></i>
+                                            {selectedModel.name}
+                                            <i data-lucide="chevron-down" className="w-3 h-3"></i>
                                         </button>
+                                        <AnimatePresence>
+                                            {isModelMenuOpen && (
+                                                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute bottom-12 right-0 w-64 bg-white border border-gray-200 rounded-xl shadow-xl p-2 z-50">
+                                                    {MODELS.map(m => (
+                                                        <button key={m.id} onClick={() => { setSelectedModel(m); setIsModelMenuOpen(false); }} className="flex items-start gap-3 w-full p-2 hover:bg-gray-50 rounded-lg text-left">
+                                                            <i data-lucide={m.icon.toLowerCase()} className={`w-4 h-4 mt-1 ${m.color}`}></i>
+                                                            <div>
+                                                                <div className="text-sm font-semibold">{m.name}</div>
+                                                                <div className="text-xs text-gray-500">{m.description}</div>
+                                                            </div>
+                                                        </button>
+                                                    ))}
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </div>
+                                    <button disabled={!inputValue && files.length === 0} className="p-2 bg-black text-white rounded-full disabled:bg-gray-200 transition-colors">
+                                        <i data-lucide="arrow-up" className="w-4 h-4"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
